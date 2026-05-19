@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:up": "docker compose up --build -d postgres",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f postgres"
   },
   "dependencies": {
     "@types/pg": "^8.20.0",

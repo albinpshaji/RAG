@@ -51,6 +51,7 @@ export async function generateAnswer(prompt: string) {
       model: config.ollamaChatModel,
       prompt,
       stream: false,
+      think: false,
       options: {
         num_predict: config.generationMaxTokens,
         temperature: 0.2,
@@ -63,5 +64,11 @@ export async function generateAnswer(prompt: string) {
   }
 
   const data = (await response.json()) as OllamaGenerateResponse;
-  return data.response?.trim() ?? "";
+  const answer = data.response?.trim();
+
+  if (!answer) {
+    throw new Error("Ollama returned an empty answer.");
+  }
+
+  return answer;
 }
