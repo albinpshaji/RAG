@@ -2,6 +2,26 @@
 
 import { FormEvent, useMemo, useState } from "react";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+function getApiErrorMessage(data: unknown, fallback: string) {
+  if (typeof data !== "object" || data === null) {
+    return fallback;
+  }
+
+  const record = data as Record<string, unknown>;
+
+  if (typeof record.detail === "string") {
+    return record.detail;
+  }
+
+  if (typeof record.error === "string") {
+    return record.error;
+  }
+
+  return fallback;
+}
+
 type Source = {
   id: number;
   content: string;
@@ -43,7 +63,7 @@ export default function Home() {
     setIngestStatus("Chunking text and generating embeddings...");
 
     try {
-      const response = await fetch("/api/ingest", {
+      const response = await fetch(`${API_BASE_URL}/api/ingest`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -56,7 +76,7 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error ?? "Ingestion failed.");
+        throw new Error(getApiErrorMessage(data, "Ingestion failed."));
       }
 
       setIngestStatus(`Stored ${data.chunks} chunks from "${data.source}".`);
@@ -82,7 +102,7 @@ export default function Home() {
     setMessages((current) => [...current, { role: "user", content: currentQuestion }]);
 
     try {
-      const response = await fetch("/api/chat", {
+      const response = await fetch(`${API_BASE_URL}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -94,7 +114,7 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error ?? "Question failed.");
+        throw new Error(getApiErrorMessage(data, "Question failed."));
       }
 
       setLastSources(data.sources ?? []);
