@@ -13,6 +13,12 @@ class IngestResponse(BaseModel):
     chunks: int
 
 
+class UploadResponse(BaseModel):
+    source: str
+    chunks: int
+    pages: int
+
+
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1)
 

@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg.types.json import Jsonb
 
@@ -9,10 +11,17 @@ from app.chunking import chunk_text
 from app.config import settings
 from app.db import close_pool, open_pool, pool
 from app.ollama import create_embedding, generate_answer
+from app.pdf import extract_pdf_chunks
 from app.prompts import build_rag_prompt
 from app.retrieval import retrieve_relevant_chunks
-from app.schemas import ChatRequest, ChatResponse, IngestRequest, IngestResponse
+from app.schemas import ChatRequest, ChatResponse, IngestRequest, IngestResponse, UploadResponse
 from app.vector import to_pg_vector
+
+
+@dataclass(frozen=True)
+class ChunkToStore:
+    content: str
+    metadata: dict[str, Any]
 
 
 @asynccontextmanager
@@ -45,6 +54,37 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def clean_source(source: str | None, fallback: str = "pasted text") -> str:
+    value = source.strip() if source else ""
+    return value or fallback
+
+
+def store_chunks(chunks: list[ChunkToStore]) -> None:
+    ingested_at = datetime.now(timezone.utc).isoformat()
+    embedded_chunks: list[tuple[str, Jsonb, str]] = []
+
+    for chunk in chunks:
+        embedding = create_embedding(chunk.content)
+        embedded_chunks.append(
+            (
+                chunk.content,
+                Jsonb({**chunk.metadata, "ingestedAt": ingested_at}),
+                to_pg_vector(embedding),
+            )
+        )
+
+    with pool.connection() as connection:
+        with connection.transaction():
+            with connection.cursor() as cursor:
+                cursor.executemany(
+                    """
+                    INSERT INTO documents (content, metadata, embedding)
+                    VALUES (%s, %s::jsonb, %s::vector)
+                    """,
+                    embedded_chunks,
+                )
+
+
 @app.post("/api/ingest", response_model=IngestResponse)
 def ingest_document(request: IngestRequest) -> IngestResponse:
     text = request.text.strip()
@@ -57,35 +97,48 @@ def ingest_document(request: IngestRequest) -> IngestResponse:
     if not chunks:
         raise HTTPException(status_code=400, detail="No usable text chunks were found.")
 
-    source = request.source.strip() if request.source else "pasted text"
+    source = clean_source(request.source)
+    chunks_to_store = [
+        ChunkToStore(
+            content=chunk.content,
+            metadata={
+                "source": source,
+                "chunkIndex": chunk.chunk_index,
+            },
+        )
+        for chunk in chunks
+    ]
 
     try:
-        with pool.connection() as connection:
-            with connection.transaction():
-                with connection.cursor() as cursor:
-                    for chunk in chunks:
-                        embedding = create_embedding(chunk.content)
-                        cursor.execute(
-                            """
-                            INSERT INTO documents (content, metadata, embedding)
-                            VALUES (%s, %s::jsonb, %s::vector)
-                            """,
-                            (
-                                chunk.content,
-                                Jsonb(
-                                    {
-                                        "source": source,
-                                        "chunkIndex": chunk.chunk_index,
-                                        "ingestedAt": datetime.now(timezone.utc).isoformat(),
-                                    }
-                                ),
-                                to_pg_vector(embedding),
-                            ),
-                        )
+        store_chunks(chunks_to_store)
     except Exception as error:
         raise HTTPException(status_code=500, detail=str(error)) from error
 
     return IngestResponse(source=source, chunks=len(chunks))
+
+
+@app.post("/api/upload", response_model=UploadResponse)
+def upload_pdf(file: UploadFile = File(...)) -> UploadResponse:
+    source, pages, pdf_chunks = extract_pdf_chunks(file)
+    chunks_to_store = [
+        ChunkToStore(
+            content=chunk.content,
+            metadata={
+                "source": chunk.source,
+                "page": chunk.page,
+                "chunkIndex": chunk.chunk_index,
+                "pageChunkIndex": chunk.page_chunk_index,
+            },
+        )
+        for chunk in pdf_chunks
+    ]
+
+    try:
+        store_chunks(chunks_to_store)
+    except Exception as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+
+    return UploadResponse(source=source, chunks=len(pdf_chunks), pages=pages)
 
 
 @app.post("/api/chat", response_model=ChatResponse)

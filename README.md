@@ -1,7 +1,7 @@
 # Local RAG Engine
 
-Local document question answering with a Next.js frontend, Python/FastAPI backend,
-PostgreSQL + pgvector, and Ollama.
+Local document question answering for pasted text and PDFs with a Next.js frontend,
+Python/FastAPI backend, PostgreSQL + pgvector, and Ollama.
 
 ## Architecture
 
@@ -39,6 +39,12 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
+After the first backend setup, you can also start the API from the repo root:
+
+```bash
+npm run api:dev
+```
+
 Start the Next.js frontend from the repo root:
 
 ```bash
@@ -57,3 +63,10 @@ NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
 
 The backend defaults match the local Docker and Ollama setup. Copy
 `backend/.env.example` to `backend/.env` if you want to override them.
+
+## Features
+
+- Paste plain text and ingest it into pgvector.
+- Upload PDFs and store page-aware chunks.
+- Ask grounded questions against stored chunks.
+- Inspect retrieved source chunks and PDF page metadata.

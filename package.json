@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "api:dev": "cd backend && ./.venv/bin/uvicorn app.main:app --reload --port 8000",
     "db:up": "docker compose up --build -d postgres",
     "db:down": "docker compose down",
     "db:logs": "docker compose logs -f postgres"

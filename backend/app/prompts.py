@@ -8,8 +8,10 @@ def build_rag_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
         metadata = chunk.metadata or {}
         source = metadata.get("source", "pasted text")
         chunk_index = metadata.get("chunkIndex", chunk.id)
+        page = metadata.get("page")
+        location = f"page {page}, chunk {chunk_index}" if page else f"chunk {chunk_index}"
         context_parts.append(
-            f"Source {index + 1} ({source}, chunk {chunk_index}, "
+            f"Source {index + 1} ({source}, {location}, "
             f"similarity {chunk.similarity:.3f}):\n{chunk.content}"
         )
 
