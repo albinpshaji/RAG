@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
@@ -185,10 +186,18 @@ export default function Home() {
               Document Question Answering
             </h1>
           </div>
-          <div className="grid gap-1 text-sm text-[#5b5b55]">
-            <span>Ollama: qwen3.5:4b</span>
-            <span>Embeddings: nomic-embed-text, 768d</span>
-            <span>Vector store: PostgreSQL + pgvector</span>
+          <div className="grid gap-3 text-sm text-[#5b5b55]">
+            <div className="grid gap-1">
+              <span>Ollama: qwen3.5:4b</span>
+              <span>Embeddings: nomic-embed-text, 768d</span>
+              <span>Vector store: PostgreSQL + pgvector</span>
+            </div>
+            <Link
+              href="/datasources"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-[#243d30] px-4 text-sm font-semibold text-white transition hover:bg-[#1a2f24]"
+            >
+              Datasources
+            </Link>
           </div>
         </header>
 
@@ -265,6 +274,7 @@ export default function Home() {
                 </p>
               ) : null}
             </form>
+
           </section>
 
           <section className="grid min-h-[560px] gap-4 lg:grid-rows-[1fr_auto]">

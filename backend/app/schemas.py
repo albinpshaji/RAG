@@ -19,6 +19,35 @@ class UploadResponse(BaseModel):
     pages: int
 
 
+class StoredSource(BaseModel):
+    source: str
+    chunks: int
+    pages: list[int]
+    last_ingested_at: str | None = None
+
+
+class SourceListResponse(BaseModel):
+    sources: list[StoredSource]
+
+
+class StoredChunk(BaseModel):
+    id: int
+    content: str
+    metadata: dict[str, Any] | None
+    embedding: str | None
+    embedding_dimensions: int | None
+
+
+class ChunkListResponse(BaseModel):
+    source: str
+    chunks: list[StoredChunk]
+
+
+class DeleteSourceResponse(BaseModel):
+    source: str
+    deleted_chunks: int
+
+
 class ChatRequest(BaseModel):
     question: str = Field(min_length=1)
 
